@@ -211,6 +211,34 @@ namespace AsukaHistoryCourt
             _currentRoundIndex = 0;
             _currentStatementIndex = 0;
             _playerTrustLife = MaxTrustLife;
+
+            UpdateEpisodeDynamicUI();
+        }
+
+        private void UpdateEpisodeDynamicUI()
+        {
+            if (_locations != null && _locationTabButtons != null)
+            {
+                string[] nums = new string[] { "①", "②", "③", "④" };
+                for (int i = 0; i < _locationTabButtons.Count && i < _locations.Count; i++)
+                {
+                    Text btnTxt = _locationTabButtons[i].GetComponentInChildren<Text>();
+                    if (btnTxt != null)
+                    {
+                        string prefix = (i < nums.Length) ? nums[i] : $"({i + 1})";
+                        btnTxt.text = $"{prefix} {_locations[i].title}（{_locations[i].eraYear}）";
+                    }
+                }
+            }
+
+            if (_invGoToCourtButton != null)
+            {
+                Text courtBtnTxt = _invGoToCourtButton.GetComponentInChildren<Text>();
+                if (courtBtnTxt != null)
+                {
+                    courtBtnTxt.text = $"⚖️ 第{_currentEpisodeNumber}話 法廷へ進む";
+                }
+            }
         }
 
         private void Awake()
@@ -219,6 +247,7 @@ namespace AsukaHistoryCourt
             LoadEpisode(1);
             EnsureCameraAndEventSystem();
             BuildAllGameUI();
+            UpdateEpisodeDynamicUI();
             SwitchPhase(GamePhase.Title);
         }
 
@@ -381,16 +410,58 @@ namespace AsukaHistoryCourt
         }
 
         // =====================================================================
-        // ① タイトル画面の構築（参照画像5: 初代『逆転裁判』タイトル画面を完全再現！）
+        // ① タイトル画面の構築（古代宮殿＋主役両脇配置＋豪華ゴールドロゴ＆アクリルUI）
         // =====================================================================
         private GameObject BuildTitlePanel(Transform parent)
         {
             RectTransform panel = CreatePanel(parent, "TitlePanel", Color.black);
             SetStretch(panel);
 
-            // 中央：『逆転日本史』ロゴ＋白い指差しシルエット＋黄色い閃光スター
+            // 1. フルスクリーン美麗宮殿背景（飛鳥宮の荘厳な情景）
+            RectTransform bgRt = CreatePanel(panel, "TitleBg", Color.white);
+            SetStretch(bgRt);
+            Image bgImg = bgRt.GetComponent<Image>();
+            bgImg.raycastTarget = false;
+            Sprite bgSp = LoadIllustrationSprite("loc_asuka_palace");
+            if (bgSp != null)
+            {
+                bgImg.sprite = bgSp;
+            }
+
+            // 2. シネマティック・ダークグラデーションオーバーレイ（奥行きと視認性の向上）
+            RectTransform overlayRt = CreatePanel(panel, "TitleDarkOverlay", new Color(0.03f, 0.06f, 0.14f, 0.48f));
+            SetStretch(overlayRt);
+            overlayRt.GetComponent<Image>().raycastTarget = false;
+
+            // 3. 左手前：主人公「史堂 レイ」（自信に満ちた笑顔の立ち絵）
+            RectTransform reiRt = CreatePanel(panel, "TitleCharRei", Color.white);
+            reiRt.pivot = new Vector2(0.5f, 0f);
+            SetAnchor(reiRt, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(250f, -30f), new Vector2(580f, 850f));
+            Image reiImg = reiRt.GetComponent<Image>();
+            reiImg.preserveAspect = true;
+            reiImg.raycastTarget = false;
+            Sprite reiSp = LoadIllustrationSprite("char_rei_smile");
+            if (reiSp != null)
+            {
+                reiImg.sprite = reiSp;
+            }
+
+            // 4. 右手前：パートナー「古文 ミオ」（明るい笑顔の立ち絵）
+            RectTransform mioRt = CreatePanel(panel, "TitleCharMio", Color.white);
+            mioRt.pivot = new Vector2(0.5f, 0f);
+            SetAnchor(mioRt, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-250f, -30f), new Vector2(580f, 850f));
+            Image mioImg = mioRt.GetComponent<Image>();
+            mioImg.preserveAspect = true;
+            mioImg.raycastTarget = false;
+            Sprite mioSp = LoadIllustrationSprite("char_mio_smile");
+            if (mioSp != null)
+            {
+                mioImg.sprite = mioSp;
+            }
+
+            // 5. 中央上部：『逆転日本史』ゴールド3Dロゴ
             RectTransform logoRt = CreatePanel(panel, "TitleLogo", Color.white);
-            SetAnchor(logoRt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 120f), new Vector2(1280f, 680f));
+            SetAnchor(logoRt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 185f), new Vector2(1080f, 480f));
             Image logoImg = logoRt.GetComponent<Image>();
             logoImg.preserveAspect = true;
             logoImg.raycastTarget = false;
@@ -400,15 +471,29 @@ namespace AsukaHistoryCourt
                 logoImg.sprite = logoSp;
             }
 
-            // メインボタン1：『はじめから（第1話スタート）』
-            Button startBtn = CreateSpriteOrTextButton(
+            // 6. 中央：サブタイトル帯（歴史学習×本格逆転法廷）
+            RectTransform subBanner = CreateAceDialogueStyleBox(panel, "TitleSubBanner", new Color(0.06f, 0.05f, 0.18f, 0.92f));
+            SetAnchor(subBanner, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -20f), new Vector2(920f, 52f));
+            Text subText = CreateText(
+                subBanner,
+                "TitleSubText",
+                "⚖️ 古代の法廷で、歴史の真実を暴け！【中学生歴史学習×本格法廷アドベンチャー】 ⚖️",
+                25,
+                FontStyle.Bold,
+                new Color(1f, 0.88f, 0.38f),
+                TextAnchor.MiddleCenter
+            );
+            SetPadding(subText.rectTransform, 16f, 16f, 4f, 4f);
+
+            // 7. メインボタン1：『① 第1話から はじめる』（飛鳥時代編）
+            Button startBtn = CreateAceCornerButton(
                 panel,
                 "StartBtn_Hajimekara",
-                "title_btn_start",
-                "① 第1話から",
-                new Vector2(-220f, -230f),
-                new Vector2(360f, 84f),
-                46
+                "▶ ① 第1話から はじめる",
+                new Color(0.85f, 0.28f, 0.12f, 0.96f),
+                new Vector2(0f, -100f),
+                new Vector2(500f, 76f),
+                33
             );
             startBtn.onClick.AddListener(() =>
             {
@@ -416,15 +501,15 @@ namespace AsukaHistoryCourt
                 StartNewGameEpisode(1);
             });
 
-            // メインボタン2：『エピソード選択（時代の復習）』
+            // 8. メインボタン2：『エピソード選択（時代の復習）』
             Button epSelectBtn = CreateAceCornerButton(
                 panel,
                 "EpisodeSelectBtn",
-                "📖 エピソード選択（復習）",
-                new Color(0.12f, 0.44f, 0.38f, 0.96f),
-                new Vector2(220f, -230f),
-                new Vector2(400f, 84f),
-                34
+                "📖 エピソード選択（第1話・第2話）",
+                new Color(0.12f, 0.48f, 0.38f, 0.96f),
+                new Vector2(0f, -190f),
+                new Vector2(500f, 74f),
+                31
             );
             epSelectBtn.onClick.AddListener(() =>
             {
@@ -432,15 +517,15 @@ namespace AsukaHistoryCourt
                 OpenEpisodeSelectModal();
             });
 
-            // サブボタン1：『法廷パートから』（直接尋問対決へ）
-            Button courtDirectBtn = CreateSpriteOrTextButton(
+            // 9. サブボタン1：『法廷パートから』（直接尋問対決へ直行）
+            Button courtDirectBtn = CreateAceCornerButton(
                 panel,
                 "CourtDirectBtn",
-                "title_btn_court",
                 "⚖️ 法廷へ直行",
-                new Vector2(-200f, -335f),
-                new Vector2(320f, 64f),
-                32
+                new Color(0.20f, 0.28f, 0.58f, 0.96f),
+                new Vector2(-130f, -275f),
+                new Vector2(230f, 62f),
+                26
             );
             courtDirectBtn.onClick.AddListener(() =>
             {
@@ -448,15 +533,15 @@ namespace AsukaHistoryCourt
                 StartCourtDirectly();
             });
 
-            // サブボタン2：『法廷記録』（史料図鑑）
-            Button recordDirectBtn = CreateSpriteOrTextButton(
+            // 10. サブボタン2：『法廷記録』（史料図鑑）
+            Button recordDirectBtn = CreateAceCornerButton(
                 panel,
                 "RecordDirectBtn",
-                "title_btn_record",
                 "📁 法廷記録",
-                new Vector2(200f, -335f),
-                new Vector2(260f, 64f),
-                32
+                new Color(0.48f, 0.32f, 0.10f, 0.96f),
+                new Vector2(130f, -275f),
+                new Vector2(230f, 62f),
+                26
             );
             recordDirectBtn.onClick.AddListener(() =>
             {
@@ -465,17 +550,17 @@ namespace AsukaHistoryCourt
                 OpenEvidenceModal(false);
             });
 
-            // 最下部コピーライト表記（参照画像5完全再現）
+            // 11. 最下部コピーライト表記
             Text copyText = CreateText(
                 panel,
                 "CopyrightText",
-                "©GYAKUTEN NIHONSHI PROJECT 2026 ALL RIGHTS RESERVED.",
-                32,
+                "© GYAKUTEN NIHONSHI PROJECT 2026 ALL RIGHTS RESERVED.",
+                26,
                 FontStyle.Bold,
-                Color.white,
+                new Color(0.88f, 0.92f, 1f, 0.85f),
                 TextAnchor.MiddleCenter
             );
-            SetAnchor(copyText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 42f), new Vector2(1600f, 50f));
+            SetAnchor(copyText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 32f), new Vector2(1600f, 40f));
 
             return panel.gameObject;
         }
@@ -1672,6 +1757,7 @@ namespace AsukaHistoryCourt
             _sound.PlayEvidenceGet();
             _opEraYearText.text = "📍 西暦604年・飛鳥の朝廷（推古天皇の宮）";
             _opVisualArtText.text = "まずは飛鳥の都を調査して『正しい歴史史料』を集めよう！";
+            if (_opEpisodeTitleText != null) _opEpisodeTitleText.text = "🎬 第1話：逆転の飛鳥時代 〜聖徳太子から大化の改新へ〜";
             _opEpisodeTitleBanner.SetActive(true);
 
             yield return PlayOpeningCutRoutine(
@@ -1767,6 +1853,7 @@ namespace AsukaHistoryCourt
             _sound.PlayEvidenceGet();
             _opEraYearText.text = "📍 西暦743年 奈良時代（平城京・天平文化）";
             _opVisualArtText.text = "平城京・東大寺・農村・唐招提寺を調査して、仲麻呂の野望を法廷で打ち砕け！";
+            if (_opEpisodeTitleText != null) _opEpisodeTitleText.text = "🎬 第2話：咲くやこの花、逆転の奈良時代 〜平城京と大仏建立の真実〜";
             _opEpisodeTitleBanner.SetActive(true);
 
             yield return PlayOpeningCutRoutine(
