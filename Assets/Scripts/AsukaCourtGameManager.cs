@@ -217,16 +217,14 @@ namespace AsukaHistoryCourt
 
         private void UpdateEpisodeDynamicUI()
         {
-            if (_locations != null && _locationTabButtons != null)
+            if (_locationTabButtons != null)
             {
-                string[] nums = new string[] { "①", "②", "③", "④" };
-                for (int i = 0; i < _locationTabButtons.Count && i < _locations.Count; i++)
+                for (int i = 0; i < _locationTabButtons.Count; i++)
                 {
                     Text btnTxt = _locationTabButtons[i].GetComponentInChildren<Text>();
                     if (btnTxt != null)
                     {
-                        string prefix = (i < nums.Length) ? nums[i] : $"({i + 1})";
-                        btnTxt.text = $"{prefix} {_locations[i].title}（{_locations[i].eraYear}）";
+                        btnTxt.text = GetLocationTabButtonLabel(_currentEpisodeNumber, i);
                     }
                 }
             }
@@ -237,6 +235,32 @@ namespace AsukaHistoryCourt
                 if (courtBtnTxt != null)
                 {
                     courtBtnTxt.text = $"⚖️ 第{_currentEpisodeNumber}話 法廷へ進む";
+                }
+            }
+        }
+
+        private string GetLocationTabButtonLabel(int episodeNumber, int locIndex)
+        {
+            if (episodeNumber == 2)
+            {
+                switch (locIndex)
+                {
+                    case 0: return "① 平城京 朱雀大路（710年・元明天皇と律令の都）";
+                    case 1: return "② 東大寺 大仏殿（743年・聖武天皇の大仏造立）";
+                    case 2: return "③ 班田農民の村（743年・重税と墾田永年私財法）";
+                    case 3: return "④ 唐招提寺（759年・鑑真和上と天平文化）";
+                    default: return $"場所 {locIndex + 1}";
+                }
+            }
+            else
+            {
+                switch (locIndex)
+                {
+                    case 0: return "① 飛鳥の朝廷（604年・聖徳太子の政治）";
+                    case 1: return "② 難波津の港（607年・小野妹子と遣隋使）";
+                    case 2: return "③ 斑鳩の法隆寺（607年・世界最古の木造建築）";
+                    case 3: return "④ 飛鳥板蓋宮（645年・大化の改新と公地公民）";
+                    default: return $"場所 {locIndex + 1}";
                 }
             }
         }
@@ -738,19 +762,19 @@ namespace AsukaHistoryCourt
                 .rectTransform.anchoredPosition = new Vector2(0f, -16f);
 
             _locationTabButtons.Clear();
-            string[] tabNames = new string[]
-            {
-                "① 飛鳥の朝廷（604年・聖徳太子の政治）",
-                "② 難波津の港（607年・小野妹子と遣隋使）",
-                "③ 斑鳩・法隆寺（607年・世界最古の木造建築）",
-                "④ 飛鳥板蓋宮（645年・大化の改新と公地公民）"
-            };
-            for (int i = 0; i < tabNames.Length; i++)
+            for (int i = 0; i < 4; i++)
             {
                 int idx = i;
-                Button locBtn = CreateAceCornerButton(moveOverlay, "MoveLoc_" + i, tabNames[i], new Color(0.18f, 0.24f, 0.46f, 0.96f), Vector2.zero, Vector2.zero, 29);
+                string label = GetLocationTabButtonLabel(_currentEpisodeNumber, i);
+                Button locBtn = CreateAceCornerButton(moveOverlay, "MoveLoc_" + i, label, new Color(0.18f, 0.24f, 0.46f, 0.96f), Vector2.zero, Vector2.zero, 27);
+                Text btnText = locBtn.GetComponentInChildren<Text>();
+                if (btnText != null)
+                {
+                    btnText.resizeTextMinSize = 16;
+                    btnText.resizeTextMaxSize = 27;
+                }
                 float yOffset = 98f - (i * 78f);
-                SetAnchor(locBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, yOffset), new Vector2(880f, 64f));
+                SetAnchor(locBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, yOffset), new Vector2(880f, 66f));
                 locBtn.onClick.AddListener(() =>
                 {
                     _sound.PlayClick();
