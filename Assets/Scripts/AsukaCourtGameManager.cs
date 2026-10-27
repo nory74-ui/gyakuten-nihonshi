@@ -47,6 +47,19 @@ namespace AsukaHistoryCourt
         [Header("現在のゲーム状態")]
         public GamePhase currentPhase = GamePhase.Title;
 
+        // エピソード管理システム（第1話：飛鳥時代 / 第2話：奈良時代）
+        public const string ClearedEpisodePrefKey = "Gyakuten_ClearedEpisode";
+        private int _currentEpisodeNumber = 1;
+        private EpisodeData _currentEpisodeData;
+        private GameObject _episodeSelectModalPanel;
+        private Text _endingHeaderText;
+        private Text _endingSummarySheetText;
+        private Button _endingNextEraBtn;
+        private GameObject _ep2LockedMask;
+        private Text _ep2StatusBadge;
+        private Button _ep2PlayBtn;
+        private Button _ep2CourtBtn;
+
         // データベース
         private List<EvidenceItem> _allEvidences;
         private HashSet<string> _collectedEvidenceIds = new HashSet<string>();
@@ -168,10 +181,42 @@ namespace AsukaHistoryCourt
             }
         }
 
+        public int GetMaxClearedEpisode()
+        {
+            return PlayerPrefs.GetInt(ClearedEpisodePrefKey, 0);
+        }
+
+        public void MarkEpisodeCleared(int epNum)
+        {
+            int cur = GetMaxClearedEpisode();
+            if (epNum > cur)
+            {
+                PlayerPrefs.SetInt(ClearedEpisodePrefKey, epNum);
+                PlayerPrefs.Save();
+            }
+        }
+
+        public void LoadEpisode(int epNum)
+        {
+            _currentEpisodeNumber = epNum;
+            _currentEpisodeData = HistoryDatabase.GetEpisode(epNum);
+            _allEvidences = _currentEpisodeData.evidences;
+            _locations = _currentEpisodeData.locations;
+            _courtRounds = _currentEpisodeData.courtRounds;
+
+            _collectedEvidenceIds.Clear();
+            _inspectedSpotIds.Clear();
+            _talkedTopicIds.Clear();
+            _currentLocationIndex = 0;
+            _currentRoundIndex = 0;
+            _currentStatementIndex = 0;
+            _playerTrustLife = MaxTrustLife;
+        }
+
         private void Awake()
         {
             InitializeResources();
-            LoadDatabase();
+            LoadEpisode(1);
             EnsureCameraAndEventSystem();
             BuildAllGameUI();
             SwitchPhase(GamePhase.Title);
@@ -284,6 +329,10 @@ namespace AsukaHistoryCourt
             if (rawSpeaker.Contains("馬子")) return "馬子";
             if (rawSpeaker.Contains("妹子")) return "小野妹子";
             if (rawSpeaker.Contains("中大兄")) return "中大兄皇子";
+            if (rawSpeaker.Contains("仲麻呂") || rawSpeaker.Contains("藤原")) return "仲麻呂";
+            if (rawSpeaker.Contains("行基")) return "行基";
+            if (rawSpeaker.Contains("鑑真")) return "鑑真";
+            if (rawSpeaker.Contains("農民")) return "農民";
             if (rawSpeaker.Contains("裁判長")) return "裁判長";
             return rawSpeaker;
         }
@@ -323,6 +372,7 @@ namespace AsukaHistoryCourt
             _endingPanel = BuildEndingPanel(_shakeContainer);
             _evidenceModalPanel = BuildEvidenceModalPanel(_shakeContainer);
             _cutInOverlayPanel = BuildCutInOverlay(_shakeContainer);
+            _episodeSelectModalPanel = BuildEpisodeSelectModalPanel(_shakeContainer);
 
             RectTransform flashRect = CreatePanel(canvasObj.transform, "FlashOverlay", new Color(1f, 1f, 1f, 0f));
             SetStretch(flashRect);
@@ -350,31 +400,47 @@ namespace AsukaHistoryCourt
                 logoImg.sprite = logoSp;
             }
 
-            // メインボタン：『はじめから』（参照画像5と完全一致の位置・デザイン）
+            // メインボタン1：『はじめから（第1話スタート）』
             Button startBtn = CreateSpriteOrTextButton(
                 panel,
                 "StartBtn_Hajimekara",
                 "title_btn_start",
-                "はじめから",
-                new Vector2(0f, -215f),
-                new Vector2(380f, 96f),
-                56
+                "① 第1話から",
+                new Vector2(-220f, -230f),
+                new Vector2(360f, 84f),
+                46
             );
             startBtn.onClick.AddListener(() =>
             {
                 _sound.PlayObjection();
-                StartNewGameFull();
+                StartNewGameEpisode(1);
             });
 
-            // サブボタン1：『法廷パートから』（すぐ尋問対決へ）
+            // メインボタン2：『エピソード選択（時代の復習）』
+            Button epSelectBtn = CreateAceCornerButton(
+                panel,
+                "EpisodeSelectBtn",
+                "📖 エピソード選択（復習）",
+                new Color(0.12f, 0.44f, 0.38f, 0.96f),
+                new Vector2(220f, -230f),
+                new Vector2(400f, 84f),
+                34
+            );
+            epSelectBtn.onClick.AddListener(() =>
+            {
+                _sound.PlayClick();
+                OpenEpisodeSelectModal();
+            });
+
+            // サブボタン1：『法廷パートから』（直接尋問対決へ）
             Button courtDirectBtn = CreateSpriteOrTextButton(
                 panel,
                 "CourtDirectBtn",
                 "title_btn_court",
-                "法廷パートから",
-                new Vector2(-180f, -325f),
-                new Vector2(340f, 68f),
-                36
+                "⚖️ 法廷へ直行",
+                new Vector2(-200f, -335f),
+                new Vector2(320f, 64f),
+                32
             );
             courtDirectBtn.onClick.AddListener(() =>
             {
@@ -387,10 +453,10 @@ namespace AsukaHistoryCourt
                 panel,
                 "RecordDirectBtn",
                 "title_btn_record",
-                "法廷記録",
-                new Vector2(180f, -325f),
-                new Vector2(220f, 68f),
-                36
+                "📁 法廷記録",
+                new Vector2(200f, -335f),
+                new Vector2(260f, 64f),
+                32
             );
             recordDirectBtn.onClick.AddListener(() =>
             {
@@ -959,34 +1025,30 @@ namespace AsukaHistoryCourt
                 bgArt.GetComponent<Image>().sprite = horyujiSp;
             }
 
-            Text header = CreateText(panel, "EndingHeader", "🎊 完全勝訴！『逆転日本史』第1話・飛鳥時代クリア！ 🎊", 48, FontStyle.Bold, new Color(1f, 0.90f, 0.38f), TextAnchor.MiddleCenter);
-            SetAnchor(header.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -60f), new Vector2(1740f, 74f));
+            _endingHeaderText = CreateText(panel, "EndingHeader", "🎊 完全勝訴！『逆転日本史』クリア！ 🎊", 44, FontStyle.Bold, new Color(1f, 0.90f, 0.38f), TextAnchor.MiddleCenter);
+            SetAnchor(_endingHeaderText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -50f), new Vector2(1740f, 68f));
 
             RectTransform summaryBox = CreateAceDialogueStyleBox(panel, "SummarySheetBox", new Color(0.04f, 0.06f, 0.14f, 0.94f));
-            SetAnchor(summaryBox, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 14f), new Vector2(1740f, 650f));
+            SetAnchor(summaryBox, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 25f), new Vector2(1740f, 660f));
 
-            string summaryContent =
-                "📝【史堂レイ＆古文ミオの飛鳥時代・最重要まとめノート】\n" +
-                "① 聖徳太子（厩戸王）の政治（593年〜）\n" +
-                "  ・推古天皇の【摂政（せっしょう）】となり、豪族の蘇我馬子と協力して政治を行う。\n" +
-                "  ・【冠位十二階（603年）】：家柄ではなく、【個人の能力や功績】で役人を登用した制度。\n" +
-                "  ・【十七条の憲法（604年）】：『和を以て貴しとなす』。豪族の争いを抑え、【天皇中心の国づくり】を目指した。\n" +
-                "② 外交と飛鳥文化（607年〜）\n" +
-                "  ・【遣隋使（607年）】：【小野妹子】を中国の【隋（ずい）】へ派遣。対等な外交と先進文化・制度の吸収を図った。\n" +
-                "  ・【法隆寺】と【飛鳥文化】：斑鳩に建てられた世界最古の木造建築。日本最初の仏教文化が栄えた。\n" +
-                "③ 大化の改新（645年〜）\n" +
-                "  ・645年（乙巳の変）、【中大兄皇子（のちの天智天皇）】と【中臣鎌足（のちの藤原鎌足）】が【蘇我氏】を倒す。\n" +
-                "  ・豪族が私有していた土地と人民を廃止し、すべて国（天皇）のものにする【公地公民（こうちこうみん）】を打ち出した！";
+            _endingSummarySheetText = CreateText(summaryBox, "SummarySheetText", "", 29, FontStyle.Bold, new Color(0.95f, 1f, 0.92f), TextAnchor.MiddleLeft);
+            SetPadding(_endingSummarySheetText.rectTransform, 36f, 36f, 20f, 20f);
+            _endingSummarySheetText.lineSpacing = 1.15f;
+            _endingSummarySheetText.resizeTextForBestFit = true;
+            _endingSummarySheetText.resizeTextMinSize = 24;
+            _endingSummarySheetText.resizeTextMaxSize = 29;
 
-            Text summarySheetText = CreateText(summaryBox, "SummarySheetText", summaryContent, 30, FontStyle.Bold, new Color(0.95f, 1f, 0.92f), TextAnchor.MiddleLeft);
-            SetPadding(summarySheetText.rectTransform, 36f, 36f, 20f, 20f);
-            summarySheetText.lineSpacing = 1.15f;
-            summarySheetText.resizeTextForBestFit = true;
-            summarySheetText.resizeTextMinSize = 26;
-            summarySheetText.resizeTextMaxSize = 30;
+            // 中央：『次の時代へタイムスリップ！』（第1話クリア時）
+            _endingNextEraBtn = CreateAceCornerButton(panel, "NextEraBtn", "⚡ 次の時代へタイムスリップ！（第2話・奈良時代へ）", new Color(0.85f, 0.20f, 0.15f, 0.98f), Vector2.zero, Vector2.zero, 32);
+            SetAnchor(_endingNextEraBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 95f), new Vector2(860f, 76f));
+            _endingNextEraBtn.onClick.AddListener(() =>
+            {
+                _sound.PlayObjection();
+                StartNewGameEpisode(2);
+            });
 
-            Button openFileBtn = CreateAceCornerButton(panel, "ReviewEvidencesBtn", "📁 法廷記録を見返す", new Color(0.16f, 0.44f, 0.32f, 0.96f), Vector2.zero, Vector2.zero, 30);
-            SetAnchor(openFileBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-280f, 74f), new Vector2(480f, 74f));
+            Button openFileBtn = CreateAceCornerButton(panel, "ReviewEvidencesBtn", "📁 法廷記録を見返す", new Color(0.16f, 0.44f, 0.32f, 0.96f), Vector2.zero, Vector2.zero, 28);
+            SetAnchor(openFileBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-360f, 25f), new Vector2(420f, 54f));
             openFileBtn.onClick.AddListener(() =>
             {
                 _sound.PlayClick();
@@ -994,8 +1056,8 @@ namespace AsukaHistoryCourt
                 OpenEvidenceModal(false);
             });
 
-            Button returnTitleBtn = CreateAceCornerButton(panel, "ReturnTitleBtn", "🏠 タイトル画面へ戻る", new Color(0.75f, 0.14f, 0.16f, 0.96f), Vector2.zero, Vector2.zero, 30);
-            SetAnchor(returnTitleBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(280f, 74f), new Vector2(480f, 74f));
+            Button returnTitleBtn = CreateAceCornerButton(panel, "ReturnTitleBtn", "🏠 タイトル画面へ戻る", new Color(0.24f, 0.28f, 0.45f, 0.96f), Vector2.zero, Vector2.zero, 28);
+            SetAnchor(returnTitleBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(360f, 25f), new Vector2(420f, 54f));
             returnTitleBtn.onClick.AddListener(() =>
             {
                 _sound.PlayClick();
@@ -1080,6 +1142,166 @@ namespace AsukaHistoryCourt
         }
 
         // =====================================================================
+        // 📖 エピソード選択・時代復習モーダル画面の構築
+        // =====================================================================
+        private GameObject BuildEpisodeSelectModalPanel(Transform parent)
+        {
+            RectTransform modalBg = CreatePanel(parent, "EpisodeSelectModalPanel", new Color(0f, 0f, 0f, 0.88f));
+            SetStretch(modalBg);
+
+            RectTransform window = CreateAceDialogueStyleBox(modalBg, "ModalWindow", new Color(0.06f, 0.08f, 0.16f, 0.98f));
+            SetAnchor(window, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1760f, 940f));
+
+            RectTransform headerBar = CreatePanel(window, "ModalHeader", new Color(0.20f, 0.35f, 0.55f, 1f));
+            SetAnchor(headerBar, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -44f), new Vector2(-6f, 82f));
+
+            Text headerTxt = CreateText(headerBar, "ModalHeaderText", "📖 【 エピソード選択・時代の復習 】クリアした時代をいつでも再挑戦！", 34, FontStyle.Bold, Color.white, TextAnchor.MiddleLeft);
+            SetAnchor(headerTxt.rectTransform, new Vector2(0f, 0f), new Vector2(0.8f, 1f), new Vector2(35f, 0f), new Vector2(-35f, 0f));
+
+            Button closeBtn = CreateAceCornerButton(headerBar, "CloseModalBtn", "✖ 閉じる", new Color(0.22f, 0.14f, 0.20f, 0.96f), Vector2.zero, Vector2.zero, 28);
+            SetAnchor(closeBtn.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-120f, 0f), new Vector2(180f, 58f));
+            closeBtn.onClick.AddListener(() =>
+            {
+                CloseEpisodeSelectModal();
+            });
+
+            Text subDesc = CreateText(window, "SubDesc", "各時代の重要史料と法廷バトルを復習して、中学歴史の要点を完璧にマスターしよう！", 26, FontStyle.Normal, new Color(0.85f, 0.90f, 1f), TextAnchor.MiddleCenter);
+            SetAnchor(subDesc.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -110f), new Vector2(1600f, 40f));
+
+            // -----------------------------------------------------------------
+            // 左カード：第1話（飛鳥時代）
+            // -----------------------------------------------------------------
+            RectTransform card1 = CreateAceDialogueStyleBox(window, "EpisodeCard1", new Color(0.08f, 0.14f, 0.26f, 0.95f));
+            SetAnchor(card1, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-420f, -40f), new Vector2(800f, 680f));
+
+            Text ep1Title = CreateText(card1, "Ep1Title", "🌸 第1話：逆転の飛鳥時代", 36, FontStyle.Bold, new Color(1f, 0.90f, 0.40f), TextAnchor.MiddleCenter);
+            SetAnchor(ep1Title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(760f, 50f));
+
+            Text ep1Sub = CreateText(card1, "Ep1Sub", "西暦604年〜645年頃（推古朝・聖徳太子・大化の改新）", 23, FontStyle.Normal, new Color(0.80f, 0.88f, 0.95f), TextAnchor.MiddleCenter);
+            SetAnchor(ep1Sub.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -85f), new Vector2(760f, 35f));
+
+            Text ep1Badge = CreateText(card1, "Ep1Badge", "🔓 解放中（いつでも復習可能）", 26, FontStyle.Bold, new Color(0.35f, 0.95f, 0.45f), TextAnchor.MiddleCenter);
+            SetAnchor(ep1Badge.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -130f), new Vector2(760f, 35f));
+
+            RectTransform ep1PointsBox = CreatePanel(card1, "PointsBox1", new Color(0.04f, 0.08f, 0.16f, 0.85f));
+            SetAnchor(ep1PointsBox, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 10f), new Vector2(720f, 300f));
+            string ep1Text = "📝【歴史の重要学習ポイント】\n" +
+                "・聖徳太子の政治（冠位十二階・十七条の憲法）\n" +
+                "・小野妹子の遣隋使派遣と法隆寺（飛鳥文化）\n" +
+                "・中大兄皇子と中臣鎌足の大化の改新（公地公民）\n" +
+                "・大豪族・蘇我馬子のウソを暴き、正しい歴史を取り戻せ！";
+            Text ep1PointsTxt = CreateText(ep1PointsBox, "Ep1PointsTxt", ep1Text, 25, FontStyle.Normal, new Color(0.92f, 0.96f, 1f), TextAnchor.UpperLeft);
+            SetPadding(ep1PointsTxt.rectTransform, 25f, 25f, 20f, 20f);
+            ep1PointsTxt.lineSpacing = 1.25f;
+
+            Button ep1PlayBtn = CreateAceCornerButton(card1, "Ep1PlayBtn", "🎬 最初から（探偵＆法廷）", new Color(0.82f, 0.18f, 0.15f, 0.98f), Vector2.zero, Vector2.zero, 28);
+            SetAnchor(ep1PlayBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 60f), new Vector2(360f, 64f));
+            ep1PlayBtn.onClick.AddListener(() =>
+            {
+                _sound.PlayObjection();
+                _episodeSelectModalPanel.SetActive(false);
+                StartNewGameEpisode(1);
+            });
+
+            Button ep1CourtBtn = CreateAceCornerButton(card1, "Ep1CourtBtn", "⚖️ 法廷パート直行", new Color(0.15f, 0.45f, 0.35f, 0.98f), Vector2.zero, Vector2.zero, 28);
+            SetAnchor(ep1CourtBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(190f, 60f), new Vector2(360f, 64f));
+            ep1CourtBtn.onClick.AddListener(() =>
+            {
+                _sound.PlayClick();
+                _episodeSelectModalPanel.SetActive(false);
+                LoadEpisode(1);
+                UnlockAllEvidences();
+                StartCourtMode();
+            });
+
+            // -----------------------------------------------------------------
+            // 右カード：第2話（奈良時代）
+            // -----------------------------------------------------------------
+            RectTransform card2 = CreateAceDialogueStyleBox(window, "EpisodeCard2", new Color(0.14f, 0.10f, 0.26f, 0.95f));
+            SetAnchor(card2, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(420f, -40f), new Vector2(800f, 680f));
+
+            Text ep2Title = CreateText(card2, "Ep2Title", "🌸 第2話：咲くやこの花、逆転の奈良時代", 36, FontStyle.Bold, new Color(1f, 0.90f, 0.40f), TextAnchor.MiddleCenter);
+            SetAnchor(ep2Title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(760f, 50f));
+
+            Text ep2Sub = CreateText(card2, "Ep2Sub", "西暦710年〜752年頃（平城京・天平文化・大仏造立）", 23, FontStyle.Normal, new Color(0.80f, 0.88f, 0.95f), TextAnchor.MiddleCenter);
+            SetAnchor(ep2Sub.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -85f), new Vector2(760f, 35f));
+
+            _ep2StatusBadge = CreateText(card2, "Ep2Badge", "🔒 未解放", 26, FontStyle.Bold, new Color(0.95f, 0.55f, 0.45f), TextAnchor.MiddleCenter);
+            SetAnchor(_ep2StatusBadge.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -130f), new Vector2(760f, 35f));
+
+            RectTransform ep2PointsBox = CreatePanel(card2, "PointsBox2", new Color(0.08f, 0.04f, 0.16f, 0.85f));
+            SetAnchor(ep2PointsBox, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 10f), new Vector2(720f, 300f));
+            string ep2Text = "📝【歴史の重要学習ポイント】\n" +
+                "・平城京遷都（710年・長安を手本）と大宝律令・和同開珎\n" +
+                "・農民の重税（租・庸・調・防人）と逃亡の真相\n" +
+                "・墾田永年私財法（743年）と荘園（私有地）の始まり\n" +
+                "・聖武天皇の鎮護国家と大仏造立、行基・鑑真の活躍！";
+            Text ep2PointsTxt = CreateText(ep2PointsBox, "Ep2PointsTxt", ep2Text, 25, FontStyle.Normal, new Color(0.92f, 0.96f, 1f), TextAnchor.UpperLeft);
+            SetPadding(ep2PointsTxt.rectTransform, 25f, 25f, 20f, 20f);
+            ep2PointsTxt.lineSpacing = 1.25f;
+
+            _ep2PlayBtn = CreateAceCornerButton(card2, "Ep2PlayBtn", "🎬 最初から（探偵＆法廷）", new Color(0.82f, 0.18f, 0.15f, 0.98f), Vector2.zero, Vector2.zero, 28);
+            SetAnchor(_ep2PlayBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 60f), new Vector2(360f, 64f));
+            _ep2PlayBtn.onClick.AddListener(() =>
+            {
+                if (GetMaxClearedEpisode() < 1) return;
+                _sound.PlayObjection();
+                _episodeSelectModalPanel.SetActive(false);
+                StartNewGameEpisode(2);
+            });
+
+            _ep2CourtBtn = CreateAceCornerButton(card2, "Ep2CourtBtn", "⚖️ 法廷パート直行", new Color(0.15f, 0.45f, 0.35f, 0.98f), Vector2.zero, Vector2.zero, 28);
+            SetAnchor(_ep2CourtBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(190f, 60f), new Vector2(360f, 64f));
+            _ep2CourtBtn.onClick.AddListener(() =>
+            {
+                if (GetMaxClearedEpisode() < 1) return;
+                _sound.PlayClick();
+                _episodeSelectModalPanel.SetActive(false);
+                LoadEpisode(2);
+                UnlockAllEvidences();
+                StartCourtMode();
+            });
+
+            // 未解放時の半透明ロックオーバーレイ
+            RectTransform lockMask = CreatePanel(card2, "Ep2LockedMask", new Color(0f, 0f, 0f, 0.82f));
+            SetStretch(lockMask);
+            _ep2LockedMask = lockMask.gameObject;
+
+            Text lockTxt = CreateText(lockMask, "LockTxt", "🔒\n【 第1話（飛鳥時代）をクリアすると解放！ 】\nまずは第1話をクリアして歴史を進めよう！", 32, FontStyle.Bold, new Color(1f, 0.85f, 0.45f), TextAnchor.MiddleCenter);
+            SetStretch(lockTxt.rectTransform);
+            lockTxt.lineSpacing = 1.3f;
+
+            modalBg.gameObject.SetActive(false);
+            return modalBg.gameObject;
+        }
+
+        private void OpenEpisodeSelectModal()
+        {
+            int cleared = GetMaxClearedEpisode();
+            bool ep2Unlocked = cleared >= 1;
+
+            if (_ep2LockedMask != null) _ep2LockedMask.SetActive(!ep2Unlocked);
+            if (_ep2StatusBadge != null)
+            {
+                _ep2StatusBadge.text = ep2Unlocked ? "🔓 解放済み（いつでも復習可能）" : "🔒 未解放（第1話クリアで解放！）";
+                _ep2StatusBadge.color = ep2Unlocked ? new Color(0.35f, 0.95f, 0.45f) : new Color(0.95f, 0.55f, 0.45f);
+            }
+            if (_ep2PlayBtn != null) _ep2PlayBtn.interactable = ep2Unlocked;
+            if (_ep2CourtBtn != null) _ep2CourtBtn.interactable = ep2Unlocked;
+
+            _episodeSelectModalPanel.SetActive(true);
+        }
+
+        private void CloseEpisodeSelectModal()
+        {
+            _sound.PlayClick();
+            if (_episodeSelectModalPanel != null)
+            {
+                _episodeSelectModalPanel.SetActive(false);
+            }
+        }
+
+        // =====================================================================
         // 💥 参照画像2 & 4 完全再現！法廷シーン上に直接炸裂するギザギザ爆発吹き出し
         // =====================================================================
         private GameObject BuildCutInOverlay(Transform parent)
@@ -1129,15 +1351,50 @@ namespace AsukaHistoryCourt
                     break;
                 case GamePhase.Ending:
                     _sound.PlayBgm(RetroSoundPlayer.BgmTrack.Ending);
+                    MarkEpisodeCleared(_currentEpisodeNumber);
+                    if (_endingHeaderText != null && _currentEpisodeData != null)
+                        _endingHeaderText.text = _currentEpisodeData.endingHeader;
+                    if (_endingSummarySheetText != null && _currentEpisodeData != null)
+                        _endingSummarySheetText.text = _currentEpisodeData.endingSummaryContent;
+                    if (_endingNextEraBtn != null)
+                    {
+                        if (_currentEpisodeNumber == 1)
+                        {
+                            _endingNextEraBtn.gameObject.SetActive(true);
+                            Text btnTxt = _endingNextEraBtn.GetComponentInChildren<Text>();
+                            if (btnTxt != null) btnTxt.text = "⚡ 次の時代へタイムスリップ！（第2話・奈良時代へ）";
+                            _endingNextEraBtn.onClick.RemoveAllListeners();
+                            _endingNextEraBtn.onClick.AddListener(() =>
+                            {
+                                _sound.PlayObjection();
+                                StartNewGameEpisode(2);
+                            });
+                        }
+                        else
+                        {
+                            _endingNextEraBtn.gameObject.SetActive(true);
+                            Text btnTxt = _endingNextEraBtn.GetComponentInChildren<Text>();
+                            if (btnTxt != null) btnTxt.text = "🎉 全時代クリア！おめでとう！";
+                            _endingNextEraBtn.onClick.RemoveAllListeners();
+                            _endingNextEraBtn.onClick.AddListener(() =>
+                            {
+                                _sound.PlayClick();
+                                SwitchPhase(GamePhase.Title);
+                            });
+                        }
+                    }
                     break;
             }
         }
 
         private void StartNewGameFull()
         {
-            _collectedEvidenceIds.Clear();
-            _inspectedSpotIds.Clear();
-            _talkedTopicIds.Clear();
+            StartNewGameEpisode(1);
+        }
+
+        public void StartNewGameEpisode(int epNum)
+        {
+            LoadEpisode(epNum);
             SwitchPhase(GamePhase.Opening);
             if (_opCoroutine != null) StopCoroutine(_opCoroutine);
             if (_opBgMotionCoroutine != null) StopCoroutine(_opBgMotionCoroutine);
@@ -1218,6 +1475,11 @@ namespace AsukaHistoryCourt
 
         private IEnumerator PlayOpeningMovieRoutine()
         {
+            if (_currentEpisodeNumber == 2)
+            {
+                yield return PlayOpeningMovieEpisode2Routine();
+                yield break;
+            }
             Sprite classroomSp = LoadIllustrationSprite("bg_op_classroom");
             Sprite timewarpSp = LoadIllustrationSprite("bg_op_timewarp");
             Sprite mioNormalSp = GetMioSprite(CharacterEmotion.Normal);
@@ -1389,6 +1651,101 @@ namespace AsukaHistoryCourt
             yield return PlayOpeningCutRoutine(
                 "レイ",
                 "そんなデタラメな歴史改ざんは絶対に許さない！\nミオ、飛鳥の時代を調査して『歴史史料』を集め、法廷で馬子のウソを論破しよう！",
+                4.2f
+            );
+
+            _opEpisodeTitleBanner.SetActive(false);
+            FinishOpeningAndStartInvestigation();
+        }
+
+        private IEnumerator PlayOpeningMovieEpisode2Routine()
+        {
+            Sprite timewarpSp = LoadIllustrationSprite("bg_op_timewarp");
+            Sprite palaceSp = LoadIllustrationSprite("loc_asuka_palace");
+            Sprite daibutsuSiteSp = LoadIllustrationSprite("loc_horyuji");
+            Sprite mioNormalSp = GetMioSprite(CharacterEmotion.Normal);
+            Sprite mioSmileSp = GetMioSprite(CharacterEmotion.Smile);
+            Sprite mioShockedSp = GetMioSprite(CharacterEmotion.Shocked);
+            Sprite reiNormalSp = GetReiSprite(CharacterEmotion.Normal);
+            Sprite reiSmileSp = GetReiSprite(CharacterEmotion.Smile);
+            Sprite reiSweatSp = GetReiSprite(CharacterEmotion.Sweat);
+            Sprite reiPointSp = GetReiSprite(CharacterEmotion.Pointing);
+            Sprite nakamaroLaughSp = GetWitnessSprite(CharacterEmotion.Laugh);
+
+            _opEpisodeTitleBanner.SetActive(false);
+            _opTopEyelidBar.sizeDelta = new Vector2(0f, 36f);
+            _opBottomEyelidBar.sizeDelta = new Vector2(0f, 36f);
+            _opCharacterImage.gameObject.SetActive(true);
+            _opCharacterImage.color = Color.white;
+            _opCharRect.anchoredPosition = new Vector2(0f, 460f);
+            _opCharRect.localRotation = Quaternion.identity;
+
+            // Scene 1: 飛鳥時代から奈良時代へのタイムワープ
+            if (timewarpSp != null) _opIllustrationImage.sprite = timewarpSp;
+            _opIllustrationImage.color = Color.white;
+            if (reiSweatSp != null) _opCharacterImage.sprite = reiSweatSp;
+            _sound.PlayObjection();
+            _opEraYearText.text = "🌀 時空の裂け目（タイムワープ発動！）";
+            _opVisualArtText.text = "飛鳥時代を救った瞬間、歴史の古文書が再び激しく発光！新たな時代へ加速する！";
+
+            yield return PlayOpeningCutRoutine(
+                "レイ",
+                "うわぁぁっ！？飛鳥時代の歴史を正したと思ったら、また古文書が光りだしたぞ！\n時空の渦に吸い込まれていく……！！"
+            );
+
+            if (mioShockedSp != null) _opCharacterImage.sprite = mioShockedSp;
+            yield return PlayOpeningCutRoutine(
+                "ミオ",
+                "レイくん、しっかり掴まって！\n歴史の改ざんは飛鳥だけじゃなかったんだ……！次の時代へタイムスリップするよ〜っ！"
+            );
+
+            // Scene 2: 平城京到着（710年）
+            StartCoroutine(FlashAndShakeRoutine(0.4f, 15f));
+            if (palaceSp != null) _opIllustrationImage.sprite = palaceSp;
+            if (mioSmileSp != null) _opCharacterImage.sprite = mioSmileSp;
+            _sound.PlayClearFanfare();
+            _opEraYearText.text = "📍 西暦710年 新都・平城京（朱雀大路）";
+            _opVisualArtText.text = "元明天皇が唐の長安を手本に造営した壮大な条坊制の都！東西に市が栄えている！";
+
+            yield return PlayOpeningCutRoutine(
+                "ミオ",
+                "着いたよ！ここは西暦710年、元明天皇によって造営された新都【平城京（へいじょうきょう）】！\n唐の長安を手本にした碁盤の目の大都市だよ！"
+            );
+
+            if (reiSmileSp != null) _opCharacterImage.sprite = reiSmileSp;
+            yield return PlayOpeningCutRoutine(
+                "レイ",
+                "すごい……！朱雀大路が真っ直ぐ伸びて、市では【和同開珎】でお買い物をしている！\n【大宝律令（701年）】で国のかたちも整った時代だね！"
+            );
+
+            // Scene 3: 東大寺大仏殿と藤原仲麻呂の陰謀（743年）
+            if (daibutsuSiteSp != null) _opIllustrationImage.sprite = daibutsuSiteSp;
+            if (nakamaroLaughSp != null) _opCharacterImage.sprite = nakamaroLaughSp;
+            _sound.PlayDamage();
+            _opEraYearText.text = "📍 西暦743年 東大寺・大仏殿建立現場";
+            _opVisualArtText.text = "聖武天皇が発注した盧舎那大仏の建設現場。しかし権勢貴族・藤原仲麻呂が暗躍…！";
+
+            yield return PlayOpeningCutRoutine(
+                "仲麻呂",
+                "フハハハハ！怪僧・行基め！農民を唆して朝廷の税（租・庸・調）を拒否させ、大仏の資材を着服した罪で捕縛してやる！\n墾田永年私財法も大仏の金銅も、すべて我が藤原氏のものよ！"
+            );
+
+            if (mioShockedSp != null) _opCharacterImage.sprite = mioShockedSp;
+            yield return PlayOpeningCutRoutine(
+                "ミオ",
+                "そんなのデタラメです！行基先生は民衆のためにため池や橋を造り、大仏建立に協力している仏教の指導者なのに……！"
+            );
+
+            // Scene 4: レイの反撃宣言
+            if (reiPointSp != null) _opCharacterImage.sprite = reiPointSp;
+            _sound.PlayEvidenceGet();
+            _opEraYearText.text = "📍 西暦743年 奈良時代（平城京・天平文化）";
+            _opVisualArtText.text = "平城京・東大寺・農村・唐招提寺を調査して、仲麻呂の野望を法廷で打ち砕け！";
+            _opEpisodeTitleBanner.SetActive(true);
+
+            yield return PlayOpeningCutRoutine(
+                "レイ",
+                "藤原仲麻呂……その横暴な言いがかり、法廷で必ず論破してみせる！\nミオ、奈良時代を調査して【大宝律令】【和同開珎】【租庸調】【墾田永年私財法】の真実の史料を集めよう！",
                 4.2f
             );
 
@@ -1987,6 +2344,19 @@ namespace AsukaHistoryCourt
 
         public Sprite GetWitnessSprite(CharacterEmotion emotion)
         {
+            if (_currentEpisodeNumber == 2)
+            {
+                string resN = emotion switch
+                {
+                    CharacterEmotion.Sweat => "char_nakamaro_sweat",
+                    CharacterEmotion.Damage or CharacterEmotion.Shocked => "char_nakamaro_damage",
+                    CharacterEmotion.Laugh or CharacterEmotion.Smile => "char_nakamaro_laugh",
+                    _ => "char_nakamaro_normal"
+                };
+                Sprite spN = LoadIllustrationSprite(resN);
+                if (spN != null) return spN;
+            }
+
             string res = emotion switch
             {
                 CharacterEmotion.Sweat => "char_umako_sweat",
@@ -2174,7 +2544,7 @@ namespace AsukaHistoryCourt
 
             _evidenceModalHeaderText.text = isPresentMode
                 ? "👉 【 法廷記録 】矛盾を暴く『歴史史料』を選んで【つきつける】！"
-                : "📁 【 法廷記録 】飛鳥時代の重要史料ファイル（全7種）";
+                : $"📁 【 法廷記録 】{(_currentEpisodeNumber == 1 ? "飛鳥時代" : "奈良時代")}の重要史料ファイル（全7種）";
 
             _presentEvidenceConfirmButton.gameObject.SetActive(isPresentMode);
 
