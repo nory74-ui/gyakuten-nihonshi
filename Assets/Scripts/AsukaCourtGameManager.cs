@@ -157,6 +157,9 @@ namespace AsukaHistoryCourt
         // 法廷記録（史料ファイル）モーダル用UI
         private bool _isSelectingEvidenceToPresent = false;
         private string _selectedEvidenceId = "";
+        private int _evidenceModalViewingEpisode = 1;
+        private Button _evidenceTabEp1Btn;
+        private Button _evidenceTabEp2Btn;
         private Transform _evidenceListContainer;
         private Text _evidenceModalHeaderText;
         private Image _evidenceDetailPreviewImage;
@@ -1157,14 +1160,14 @@ namespace AsukaHistoryCourt
             SetAnchor(_endingHeaderText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -50f), new Vector2(1740f, 68f));
 
             RectTransform summaryBox = CreateAceDialogueStyleBox(panel, "SummarySheetBox", new Color(0.04f, 0.06f, 0.14f, 0.94f));
-            SetAnchor(summaryBox, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 25f), new Vector2(1740f, 660f));
+            SetAnchor(summaryBox, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 30f), new Vector2(1740f, 700f));
 
-            _endingSummarySheetText = CreateText(summaryBox, "SummarySheetText", "", 29, FontStyle.Bold, new Color(0.95f, 1f, 0.92f), TextAnchor.MiddleLeft);
-            SetPadding(_endingSummarySheetText.rectTransform, 36f, 36f, 20f, 20f);
-            _endingSummarySheetText.lineSpacing = 1.15f;
+            _endingSummarySheetText = CreateText(summaryBox, "SummarySheetText", "", 24, FontStyle.Bold, new Color(0.95f, 1f, 0.92f), TextAnchor.UpperLeft);
+            SetPadding(_endingSummarySheetText.rectTransform, 32f, 32f, 16f, 16f);
+            _endingSummarySheetText.lineSpacing = 1.08f;
             _endingSummarySheetText.resizeTextForBestFit = true;
-            _endingSummarySheetText.resizeTextMinSize = 24;
-            _endingSummarySheetText.resizeTextMaxSize = 29;
+            _endingSummarySheetText.resizeTextMinSize = 17;
+            _endingSummarySheetText.resizeTextMaxSize = 24;
 
             // 中央：『次の時代へタイムスリップ！』（第1話クリア時）
             _endingNextEraBtn = CreateAceCornerButton(panel, "NextEraBtn", "⚡ 次の時代へタイムスリップ！（第2話・奈良時代へ）", new Color(0.85f, 0.20f, 0.15f, 0.98f), Vector2.zero, Vector2.zero, 32);
@@ -1209,11 +1212,28 @@ namespace AsukaHistoryCourt
             RectTransform headerBar = CreatePanel(window, "ModalHeader", new Color(0.27f, 0.29f, 0.56f, 1f));
             SetAnchor(headerBar, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -44f), new Vector2(-6f, 82f));
 
-            _evidenceModalHeaderText = CreateText(headerBar, "ModalHeaderText", "📁 【 法廷記録 】飛鳥時代の重要史料ファイル", 34, FontStyle.Bold, Color.white, TextAnchor.MiddleLeft);
-            SetAnchor(_evidenceModalHeaderText.rectTransform, new Vector2(0f, 0f), new Vector2(0.8f, 1f), new Vector2(35f, 0f), new Vector2(-35f, 0f));
+            _evidenceModalHeaderText = CreateText(headerBar, "ModalHeaderText", "📁 【 法廷記録 】重要史料ファイル", 32, FontStyle.Bold, Color.white, TextAnchor.MiddleLeft);
+            SetAnchor(_evidenceModalHeaderText.rectTransform, new Vector2(0f, 0f), new Vector2(0.48f, 1f), new Vector2(30f, 0f), Vector2.zero);
+
+            // 右側タブ：第1話（飛鳥）と第2話（奈良）をいつでも切り替えて鑑賞可能！
+            _evidenceTabEp1Btn = CreateAceCornerButton(headerBar, "EvidenceTabEp1", "📜 第1話（飛鳥）", new Color(0.85f, 0.45f, 0.15f, 0.98f), Vector2.zero, Vector2.zero, 25);
+            SetAnchor(_evidenceTabEp1Btn.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-510f, 0f), new Vector2(195f, 56f));
+            _evidenceTabEp1Btn.onClick.AddListener(() =>
+            {
+                _sound.PlayClick();
+                SwitchEvidenceModalEpisode(1);
+            });
+
+            _evidenceTabEp2Btn = CreateAceCornerButton(headerBar, "EvidenceTabEp2", "🌸 第2話（奈良）", new Color(0.18f, 0.24f, 0.45f, 0.96f), Vector2.zero, Vector2.zero, 25);
+            SetAnchor(_evidenceTabEp2Btn.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-300f, 0f), new Vector2(195f, 56f));
+            _evidenceTabEp2Btn.onClick.AddListener(() =>
+            {
+                _sound.PlayClick();
+                SwitchEvidenceModalEpisode(2);
+            });
 
             Button closeBtn = CreateAceCornerButton(headerBar, "CloseModalBtn", "✖ 戻る", new Color(0.22f, 0.14f, 0.20f, 0.96f), Vector2.zero, Vector2.zero, 28);
-            SetAnchor(closeBtn.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-120f, 0f), new Vector2(180f, 58f));
+            SetAnchor(closeBtn.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-100f, 0f), new Vector2(160f, 56f));
             closeBtn.onClick.AddListener(() =>
             {
                 _sound.PlayClick();
@@ -2762,16 +2782,56 @@ namespace AsukaHistoryCourt
         // =====================================================================
         // 📁 法廷記録モーダル制御
         // =====================================================================
+        private void SwitchEvidenceModalEpisode(int epNum)
+        {
+            _evidenceModalViewingEpisode = epNum;
+            RefreshEvidenceModalUI();
+        }
+
         private void OpenEvidenceModal(bool isPresentMode)
         {
             _isSelectingEvidenceToPresent = isPresentMode;
             _evidenceModalPanel.SetActive(true);
 
-            _evidenceModalHeaderText.text = isPresentMode
-                ? "👉 【 法廷記録 】矛盾を暴く『歴史史料』を選んで【つきつける】！"
-                : $"📁 【 法廷記録 】{(_currentEpisodeNumber == 1 ? "飛鳥時代" : "奈良時代")}の重要史料ファイル（全7種）";
+            // 法廷でのつきつける時は現在の話数に固定、図鑑閲覧時は現在の話数を初期値にする
+            _evidenceModalViewingEpisode = _currentEpisodeNumber;
 
-            _presentEvidenceConfirmButton.gameObject.SetActive(isPresentMode);
+            RefreshEvidenceModalUI();
+        }
+
+        private void RefreshEvidenceModalUI()
+        {
+            bool isPresent = _isSelectingEvidenceToPresent;
+
+            // タブの表示/非表示（つきつける時は現在の話数に固定しタブ非表示、図鑑閲覧時は自由に切り替え可能）
+            if (_evidenceTabEp1Btn != null) _evidenceTabEp1Btn.gameObject.SetActive(!isPresent);
+            if (_evidenceTabEp2Btn != null) _evidenceTabEp2Btn.gameObject.SetActive(!isPresent);
+
+            // タブの背景色を更新（選択中の時代をハイライト）
+            if (!isPresent)
+            {
+                Image tab1Img = _evidenceTabEp1Btn?.transform.Find("InnerFill")?.GetComponent<Image>();
+                Image tab2Img = _evidenceTabEp2Btn?.transform.Find("InnerFill")?.GetComponent<Image>();
+                if (tab1Img != null)
+                {
+                    tab1Img.color = (_evidenceModalViewingEpisode == 1)
+                        ? new Color(0.85f, 0.45f, 0.15f, 0.98f) // 選択中ゴールド朱色
+                        : new Color(0.18f, 0.24f, 0.45f, 0.96f);
+                }
+                if (tab2Img != null)
+                {
+                    tab2Img.color = (_evidenceModalViewingEpisode == 2)
+                        ? new Color(0.85f, 0.45f, 0.15f, 0.98f) // 選択中ゴールド朱色
+                        : new Color(0.18f, 0.24f, 0.45f, 0.96f);
+                }
+            }
+
+            string eraTitle = (_evidenceModalViewingEpisode == 1) ? "飛鳥時代" : "奈良時代";
+            _evidenceModalHeaderText.text = isPresent
+                ? $"👉 【 法廷記録 】矛盾を暴く『{eraTitle}の史料』を選んで【つきつける】！"
+                : $"📁 【 法廷記録 】{eraTitle}の重要史料ファイル（全7種）";
+
+            _presentEvidenceConfirmButton.gameObject.SetActive(isPresent);
 
             foreach (Transform child in _evidenceListContainer)
             {
@@ -2779,11 +2839,17 @@ namespace AsukaHistoryCourt
                 Destroy(child.gameObject);
             }
 
+            // 表示対象エピソードの証拠品リストを取得
+            List<EvidenceItem> list = (_evidenceModalViewingEpisode == 1)
+                ? HistoryDatabase.GetEpisode1Asuka().evidences
+                : HistoryDatabase.GetEpisode2Nara().evidences;
+
             string firstAvailableId = "";
-            for (int i = 0; i < _allEvidences.Count; i++)
+            for (int i = 0; i < list.Count; i++)
             {
-                EvidenceItem ev = _allEvidences[i];
-                bool isUnlocked = _collectedEvidenceIds.Contains(ev.id);
+                EvidenceItem ev = list[i];
+                // つきつける時やゲームプレイ中はその話数かつ所持確認、図鑑モード時は全アンロック
+                bool isUnlocked = !isPresent || _collectedEvidenceIds.Contains(ev.id);
                 if (isUnlocked && string.IsNullOrEmpty(firstAvailableId))
                 {
                     firstAvailableId = ev.id;
@@ -2816,7 +2882,7 @@ namespace AsukaHistoryCourt
                 _evidenceDetailIconText.text = "🔍";
                 _evidenceDetailTitleText.text = "まだ史料を入手していません";
                 _evidenceDetailSubText.text = "探偵パートで『🔍調べる』ボタンを押して史料を集めよう！";
-                _evidenceDetailDescText.text = WrapTextForBox("飛鳥の朝廷・難波津・法隆寺・飛鳥板蓋宮の4箇所を調査すると、全部で7つの重要歴史史料が法廷記録に登録されます。", 26);
+                _evidenceDetailDescText.text = WrapTextForBox("4箇所を調査すると、全部で7つの重要歴史史料が法廷記録に登録されます。", 26);
                 _evidenceDetailExamText.text = WrapTextForBox("★ヒント：画面上のオレンジ色の『調べる』ボタンをタップしよう！", 28);
                 _presentEvidenceConfirmButton.interactable = false;
             }
@@ -2845,7 +2911,16 @@ namespace AsukaHistoryCourt
 
         private EvidenceItem GetEvidenceById(string id)
         {
-            return _allEvidences.Find(e => e.id == id);
+            if (string.IsNullOrEmpty(id)) return null;
+            EvidenceItem found = _allEvidences?.Find(e => e.id == id);
+            if (found != null) return found;
+
+            var ep1 = HistoryDatabase.GetEpisode1Asuka().evidences;
+            found = ep1.Find(e => e.id == id);
+            if (found != null) return found;
+
+            var ep2 = HistoryDatabase.GetEpisode2Nara().evidences;
+            return ep2.Find(e => e.id == id);
         }
 
         /// <summary>
