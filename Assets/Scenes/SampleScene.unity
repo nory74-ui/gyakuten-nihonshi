@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &1858893061
+--- !u!1 &238763491
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,9 +127,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1858893064}
-  - component: {fileID: 1858893063}
-  - component: {fileID: 1858893062}
+  - component: {fileID: 238763494}
+  - component: {fileID: 238763493}
+  - component: {fileID: 238763492}
   m_Layer: 0
   m_Name: AsukaHistoryCourtSystem
   m_TagString: Untagged
@@ -137,38 +137,38 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1858893062
+--- !u!114 &238763492
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1858893061}
+  m_GameObject: {fileID: 238763491}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e93e6cb3814774c979718c0ee22bfed5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AsukaHistoryCourt.AsukaCourtGameManager
   currentPhase: 0
---- !u!114 &1858893063
+--- !u!114 &238763493
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1858893061}
+  m_GameObject: {fileID: 238763491}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ed52acf386ee0479d91fd07480d6e40f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AsukaHistoryCourt.RetroSoundPlayer
---- !u!4 &1858893064
+--- !u!4 &238763494
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1858893061}
+  m_GameObject: {fileID: 238763491}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -181,4 +181,4 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1858893064}
+  - {fileID: 238763494}
