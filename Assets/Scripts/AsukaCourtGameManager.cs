@@ -1445,8 +1445,34 @@ namespace AsukaHistoryCourt
             _opSpeakerText.text = FormatShortSpeakerName(speaker);
             _opAdvanceRequested = false;
 
+            CharacterEmotion emotion = DetectEmotionFromText(speaker, text);
+            string cleanText = StripEmotionTags(text);
+
+            if (_opCharacterImage != null)
+            {
+                Sprite sp = null;
+                if (speaker.Contains("レイ") || speaker.Contains("史堂"))
+                {
+                    sp = GetReiSprite(emotion);
+                }
+                else if (speaker.Contains("ミオ") || speaker.Contains("古文"))
+                {
+                    sp = GetMioSprite(emotion);
+                }
+                else if (speaker.Contains("仲麻呂") || speaker.Contains("藤原") || speaker.Contains("馬子") || speaker.Contains("蘇我"))
+                {
+                    sp = GetWitnessSprite(emotion);
+                }
+
+                if (sp != null)
+                {
+                    _opCharacterImage.sprite = sp;
+                    _opCharacterImage.gameObject.SetActive(true);
+                }
+            }
+
             if (_typingCoroutine != null) StopCoroutine(_typingCoroutine);
-            yield return TypeTextRoutine(_opBodyText, text);
+            yield return TypeTextRoutine(_opBodyText, cleanText);
 
             float timer = 0f;
             while (!_opAdvanceRequested && timer < autoWaitSeconds)
@@ -2008,9 +2034,11 @@ namespace AsukaHistoryCourt
 
                 if (_invStandingCharImage != null)
                 {
-                    Sprite sp = speaker.Contains("レイ")
+                    Sprite sp = (speaker.Contains("レイ") || speaker.Contains("史堂"))
                         ? GetReiSprite(emotion)
-                        : GetMioSprite(emotion);
+                        : ((speaker.Contains("蘇我") || speaker.Contains("馬子") || speaker.Contains("仲麻呂") || speaker.Contains("藤原"))
+                            ? GetWitnessSprite(emotion)
+                            : GetMioSprite(emotion));
                     if (sp != null) _invStandingCharImage.sprite = sp;
                 }
 
@@ -2179,10 +2207,14 @@ namespace AsukaHistoryCourt
                     SetReiEmotion(CharacterEmotion.Sweat);
                     SetMioEmotion(CharacterEmotion.Shocked);
 
+                    string witnessWrongLine = _currentEpisodeNumber == 2
+                        ? "藤原 仲麻呂：「[laugh]フッハハハ！甘いぞ小僧！我が藤原の前にそのような史料など無力よ！」"
+                        : "蘇我 馬子：「[laugh]フッフッフ…甘いぞ小僧！今の私の証言と、その史料は直接矛盾しておらんわ！」";
+
                     string[] wrongLines = new string[]
                     {
                         $"史堂 レイ：「[sweat]この『{presentedItem.title}』を見れば、証言と食い違っています！」",
-                        "蘇我 馬子：「[laugh]フッフッフ…甘いぞ小僧！今の私の証言と、その史料は直接矛盾しておらんわ！」",
+                        witnessWrongLine,
                         $"古文 ミオ：「[think]うーん、今の証言（{_currentStatementIndex + 1}番目）と『{presentedItem.title}』の組み合わせじゃなかったみたい…」",
                         round.partnerHint
                     };
@@ -2267,7 +2299,7 @@ namespace AsukaHistoryCourt
                     SwitchCourtCamera(CourtCameraAngle.CoCounsel);
                     SetMioEmotion(emotion);
                 }
-                else if (speaker.Contains("蘇我") || speaker.Contains("馬子"))
+                else if (speaker.Contains("蘇我") || speaker.Contains("馬子") || speaker.Contains("仲麻呂") || speaker.Contains("藤原"))
                 {
                     SwitchCourtCamera(CourtCameraAngle.WitnessStand);
                     SetWitnessEmotion(emotion);
@@ -2454,59 +2486,122 @@ namespace AsukaHistoryCourt
             if (body.Contains("[normal]")) return CharacterEmotion.Normal;
 
             // 2. 発話者ごとのセリフ文脈に応じた自動判定
+
+            // 藤原 仲麻呂（第2話・奈良時代 証人/対立者）
+            if (speaker.Contains("仲麻呂") || speaker.Contains("藤原"))
+            {
+                if (body.Contains("なにィ") || body.Contains("グワ") || body.Contains("ぐわ") ||
+                    body.Contains("馬鹿な") || body.Contains("バカな") || body.Contains("ありえぬ") ||
+                    body.Contains("オオオ") || body.Contains("なんということ") || body.Contains("ウソだ") ||
+                    body.Contains("ぬわ") || body.Contains("敗北") || body.Contains("失脚") ||
+                    body.Contains("うわぁ") || body.Contains("食い違っている") || body.Contains("暴かれる") ||
+                    body.Contains("矛盾") || body.Contains("なんだと") || body.Contains("論破された"))
+                    return CharacterEmotion.Damage;
+
+                if (body.Contains("…っ") || body.Contains("ぬっ") || body.Contains("ぐぬぬ") ||
+                    body.Contains("なに") || body.Contains("証拠") || body.Contains("根拠") ||
+                    body.Contains("まさか") || body.Contains("何を言う") || body.Contains("言いがかり") ||
+                    body.Contains("どこに") || body.Contains("違う") || body.Contains("弁解") ||
+                    body.Contains("動揺") || body.Contains("百歩譲ろう") || body.Contains("ええい") ||
+                    body.Contains("小癪な") || body.Contains("把握していたとは"))
+                    return CharacterEmotion.Sweat;
+
+                if (body.Contains("フッ") || body.Contains("フハハ") || body.Contains("ハッハッハ") ||
+                    body.Contains("笑止") || body.Contains("たわけ") || body.Contains("愚か") ||
+                    body.Contains("平民") || body.Contains("我が藤原") || body.Contains("死罪") ||
+                    body.Contains("当然") || body.Contains("怠け者") || body.Contains("朝廷の威光") ||
+                    body.Contains("捕縛") || body.Contains("私のもの") || body.Contains("栄華") ||
+                    body.Contains("不要") || body.Contains("怪僧") || body.Contains("フン") ||
+                    body.Contains("決まっておる") || body.Contains("無意味") || body.Contains("権力") ||
+                    body.Contains("我ら貴族") || body.Contains("甘いぞ") || body.Contains("無力"))
+                    return CharacterEmotion.Laugh;
+
+                return CharacterEmotion.Normal;
+            }
+
+            // 蘇我 馬子（第1話・飛鳥時代 証人/対立者）
             if (speaker.Contains("馬子") || speaker.Contains("蘇我"))
             {
                 if (body.Contains("なにィ") || body.Contains("ぐわ") || body.Contains("グワ") ||
                     body.Contains("うわぁ") || body.Contains("バカな") || body.Contains("ありえぬ") ||
-                    body.Contains("ぐぬぬ") || body.Contains("そんなはず") || body.Contains("ぬわ"))
+                    body.Contains("ぐぬぬ") || body.Contains("そんなはず") || body.Contains("ぬわ") ||
+                    body.Contains("敗北") || body.Contains("オオオ") || body.Contains("なんという") ||
+                    body.Contains("論破された"))
                     return CharacterEmotion.Damage;
 
                 if (body.Contains("フッ") || body.Contains("フハハ") || body.Contains("ハッハッハ") ||
                     body.Contains("笑止") || body.Contains("たわけ") || body.Contains("愚か") ||
-                    body.Contains("小僧") || body.Contains("栄光") || body.Contains("書き換えて"))
+                    body.Contains("小僧") || body.Contains("栄光") || body.Contains("書き換えて") ||
+                    body.Contains("我が蘇我") || body.Contains("権勢") || body.Contains("不要") ||
+                    body.Contains("当然") || body.Contains("フン") || body.Contains("甘いぞ"))
                     return CharacterEmotion.Laugh;
 
                 if (body.Contains("…っ") || body.Contains("ぬっ") || body.Contains("根拠") ||
-                    body.Contains("証拠") || body.Contains("まさか") || body.Contains("何を言う"))
+                    body.Contains("証拠") || body.Contains("まさか") || body.Contains("何を言う") ||
+                    body.Contains("言いがかり") || body.Contains("どこに") || body.Contains("違う") ||
+                    body.Contains("動揺") || body.Contains("ええい") || body.Contains("把握していたとは"))
                     return CharacterEmotion.Sweat;
 
                 return CharacterEmotion.Normal;
             }
 
+            // 史堂 レイ（主人公・弁護人）
             if (speaker.Contains("レイ") || speaker.Contains("史堂"))
             {
                 if (body.Contains("異議あり") || body.Contains("くらえ") || body.Contains("食らえ") ||
                     body.Contains("つきつけ") || body.Contains("証拠です") || body.Contains("真実") ||
-                    body.Contains("矛盾") || body.Contains("論破") || body.Contains("許さない"))
+                    body.Contains("矛盾") || body.Contains("論破") || body.Contains("許さない") ||
+                    body.Contains("暴く") || body.Contains("打ち砕") || body.Contains("解き明か") ||
+                    body.Contains("証明") || body.Contains("間違い") || body.Contains("あなた自身だ") ||
+                    body.Contains("待った") || body.Contains("食い違っています") || body.Contains("明らかにする") ||
+                    body.Contains("つきつけるぞ"))
                     return CharacterEmotion.Pointing;
 
                 if (body.Contains("しまっ") || body.Contains("うぐ") || body.Contains("くっ") ||
                     body.Contains("そんな…") || body.Contains("まずい") || body.Contains("どうすれば") ||
-                    body.Contains("どこだ") || body.Contains("あれっ"))
+                    body.Contains("どこだ") || body.Contains("あれっ") || body.Contains("冷や汗") ||
+                    body.Contains("ピンチ") || body.Contains("うわぁ") || body.Contains("ええっ") ||
+                    body.Contains("吸い込まれて") || body.Contains("眠くなってきた") || body.Contains("スヤァ") ||
+                    body.Contains("うとうと") || body.Contains("ふわぁ"))
                     return CharacterEmotion.Sweat;
 
                 if (body.Contains("なるほど") || body.Contains("わかりました") || body.Contains("やった") ||
-                    body.Contains("よし") || body.Contains("任せて") || body.Contains("僕の名前は"))
+                    body.Contains("よし") || body.Contains("任せて") || body.Contains("僕の名前は") ||
+                    body.Contains("すごい") || body.Contains("大好きな") || body.Contains("完成形だ") ||
+                    body.Contains("行こう") || body.Contains("証明できるぞ") || body.Contains("お任せ") ||
+                    body.Contains("勝訴") || body.Contains("ただいま"))
                     return CharacterEmotion.Smile;
 
                 return CharacterEmotion.Normal;
             }
 
+            // 古文 ミオ（ヒロイン・パートナー助手）
             if (speaker.Contains("ミオ") || speaker.Contains("古文"))
             {
                 if (body.Contains("ええー") || body.Contains("えっ") || body.Contains("キャー") ||
-                    body.Contains("うそ") || body.Contains("大変") || body.Contains("危ない") ||
-                    body.Contains("飲み込まれて") || body.Contains("信じられない"))
+                    body.Contains("きゃあ") || body.Contains("うそ") || body.Contains("大変") ||
+                    body.Contains("危ない") || body.Contains("飲み込まれて") || body.Contains("信じられない") ||
+                    body.Contains("ひどい") || body.Contains("まさか") || body.Contains("助けて") ||
+                    body.Contains("タイムスリップするよ") || body.Contains("そんなのデタラメ") ||
+                    body.Contains("大嘘") || body.Contains("ピンチ"))
                     return CharacterEmotion.Shocked;
 
                 if (body.Contains("うーん") || body.Contains("たしか") || body.Contains("調べて") ||
                     body.Contains("記録による") || body.Contains("史料") || body.Contains("古代") ||
-                    body.Contains("組み合わせ"))
+                    body.Contains("組み合わせ") || body.Contains("教科書") || body.Contains("歴史書") ||
+                    body.Contains("条文") || body.Contains("木簡") || body.Contains("確かめ") ||
+                    body.Contains("推理") || body.Contains("手本にした") || body.Contains("仕組み") ||
+                    body.Contains("定められた") || body.Contains("造営された") || body.Contains("思想だね") ||
+                    body.Contains("高僧だよ") || body.Contains("買い占めて") || body.Contains("荷札") ||
+                    body.Contains("日誌") || body.Contains("戒本"))
                     return CharacterEmotion.Thinking;
 
                 if (body.Contains("レイくん") || body.Contains("頑張って") || body.Contains("やった") ||
                     body.Contains("さすが") || body.Contains("すごい") || body.Contains("任せて") ||
-                    body.Contains("目が覚めた"))
+                    body.Contains("目が覚めた") || body.Contains("見て") || body.Contains("着いたよ") ||
+                    body.Contains("解明") || body.Contains("おめでとう") || body.Contains("つきつけるよ") ||
+                    body.Contains("つきつけよう") || body.Contains("暴こう") || body.Contains("勝訴") ||
+                    body.Contains("無実が証明"))
                     return CharacterEmotion.Smile;
 
                 return CharacterEmotion.Normal;
