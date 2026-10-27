@@ -412,7 +412,7 @@ namespace AsukaHistoryCourt
             );
             startBtn.onClick.AddListener(() =>
             {
-                _sound.PlayObjection();
+                _sound.PlayClick();
                 StartNewGameEpisode(1);
             });
 
@@ -631,7 +631,7 @@ namespace AsukaHistoryCourt
             SetAnchor(_invGoToCourtButton.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-365f, -50f), new Vector2(320f, 68f));
             _invGoToCourtButton.onClick.AddListener(() =>
             {
-                _sound.PlayObjection();
+                _sound.PlayClick();
                 UnlockAllEvidences();
                 StartCourtMode();
             });
@@ -1043,7 +1043,7 @@ namespace AsukaHistoryCourt
             SetAnchor(_endingNextEraBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 95f), new Vector2(860f, 76f));
             _endingNextEraBtn.onClick.AddListener(() =>
             {
-                _sound.PlayObjection();
+                _sound.PlayClick();
                 StartNewGameEpisode(2);
             });
 
@@ -1198,7 +1198,7 @@ namespace AsukaHistoryCourt
             SetAnchor(ep1PlayBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 60f), new Vector2(360f, 64f));
             ep1PlayBtn.onClick.AddListener(() =>
             {
-                _sound.PlayObjection();
+                _sound.PlayClick();
                 _episodeSelectModalPanel.SetActive(false);
                 StartNewGameEpisode(1);
             });
@@ -1245,7 +1245,7 @@ namespace AsukaHistoryCourt
             _ep2PlayBtn.onClick.AddListener(() =>
             {
                 if (GetMaxClearedEpisode() < 1) return;
-                _sound.PlayObjection();
+                _sound.PlayClick();
                 _episodeSelectModalPanel.SetActive(false);
                 StartNewGameEpisode(2);
             });
@@ -1366,7 +1366,7 @@ namespace AsukaHistoryCourt
                             _endingNextEraBtn.onClick.RemoveAllListeners();
                             _endingNextEraBtn.onClick.AddListener(() =>
                             {
-                                _sound.PlayObjection();
+                                _sound.PlayClick();
                                 StartNewGameEpisode(2);
                             });
                         }
@@ -1649,7 +1649,7 @@ namespace AsukaHistoryCourt
             );
 
             // 蘇我馬子が出現し、飛鳥時代の歴史改ざんを高笑い宣言！
-            _sound.PlayObjection();
+            _sound.PlayDamage();
             StartCoroutine(FlashAndShakeRoutine(0.45f, 24f));
             if (itabukiSp != null) _opIllustrationImage.sprite = itabukiSp;
             if (umakoLaughSp != null) _opCharacterImage.sprite = umakoLaughSp;
@@ -1710,7 +1710,7 @@ namespace AsukaHistoryCourt
             if (timewarpSp != null) _opIllustrationImage.sprite = timewarpSp;
             _opIllustrationImage.color = Color.white;
             if (reiSweatSp != null) _opCharacterImage.sprite = reiSweatSp;
-            _sound.PlayObjection();
+            _sound.PlayDamage();
             _opEraYearText.text = "🌀 時空の裂け目（タイムワープ発動！）";
             _opVisualArtText.text = "飛鳥時代を救った瞬間、歴史の古文書が再び激しく発光！新たな時代へ加速する！";
 
@@ -2131,7 +2131,7 @@ namespace AsukaHistoryCourt
         private void OnClickPressStatement()
         {
             if (_isInCourtConversation) return;
-            _sound.PlayObjection();
+            _sound.PlayHoldIt();
 
             CrossExaminationRound round = _courtRounds[_currentRoundIndex];
             TestimonyStatement stmt = round.statements[_currentStatementIndex];

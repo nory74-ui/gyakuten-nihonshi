@@ -26,6 +26,7 @@ namespace AsukaHistoryCourt
         private AudioClip _blipClip;
         private AudioClip _clickClip;
         private AudioClip _objectionClip;
+        private AudioClip _holdItClip;
         private AudioClip _evidenceGetClip;
         private AudioClip _damageClip;
         private AudioClip _warpClip;
@@ -76,6 +77,7 @@ namespace AsukaHistoryCourt
             _blipClip = LoadAudioClip("se_blip") ?? CreateToneClip("Blip", 0.035f, 880f, 920f, false, 0.16f);
             _clickClip = LoadAudioClip("se_click") ?? CreateToneClip("Click", 0.07f, 520f, 1040f, false, 0.28f);
             _objectionClip = LoadAudioClip("se_objection") ?? CreateObjectionImpactClip();
+            _holdItClip = LoadAudioClip("se_holdit") ?? CreateObjectionImpactClip();
             _evidenceGetClip = LoadAudioClip("se_evidence_get") ?? CreateArpeggioClip("EvidenceGet", new float[] { 523.25f, 659.25f, 783.99f, 1046.50f }, 0.11f, 0.35f);
             _damageClip = LoadAudioClip("se_damage") ?? CreateToneClip("Damage", 0.32f, 220f, 95f, true, 0.45f);
             _warpClip = LoadAudioClip("se_warp") ?? CreateToneClip("Warp", 0.18f, 340f, 1280f, false, 0.25f);
@@ -148,6 +150,14 @@ namespace AsukaHistoryCourt
             if (_sfxSource != null && _objectionClip != null)
             {
                 _sfxSource.PlayOneShot(_objectionClip, 1.0f);
+            }
+        }
+
+        public void PlayHoldIt()
+        {
+            if (_sfxSource != null && _holdItClip != null)
+            {
+                _sfxSource.PlayOneShot(_holdItClip, 1.0f);
             }
         }
 
