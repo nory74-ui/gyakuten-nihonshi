@@ -496,18 +496,27 @@ namespace AsukaHistoryCourt
             }
 
             // 6. 中央：サブタイトル帯（歴史学習×本格逆転法廷）
-            RectTransform subBanner = CreateAceDialogueStyleBox(panel, "TitleSubBanner", new Color(0.06f, 0.05f, 0.18f, 0.92f));
-            SetAnchor(subBanner, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -20f), new Vector2(920f, 52f));
+            RectTransform subBanner = CreateAceDialogueStyleBox(panel, "TitleSubBanner", new Color(0.08f, 0.06f, 0.22f, 0.94f));
+            SetAnchor(subBanner, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -16f), new Vector2(1060f, 58f));
             Text subText = CreateText(
                 subBanner,
                 "TitleSubText",
-                "⚖️ 古代の法廷で、歴史の真実を暴け！【中学生歴史学習×本格法廷アドベンチャー】 ⚖️",
-                25,
+                "⚖️ 古代の法廷で、歴史の真実を暴け！ 〜飛鳥・奈良時代編〜 ⚖️",
+                28,
                 FontStyle.Bold,
-                new Color(1f, 0.88f, 0.38f),
+                new Color(1f, 0.90f, 0.42f),
                 TextAnchor.MiddleCenter
             );
-            SetPadding(subText.rectTransform, 16f, 16f, 4f, 4f);
+            SetPadding(subText.rectTransform, 14f, 14f, 4f, 4f);
+            subText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            subText.verticalOverflow = VerticalWrapMode.Overflow;
+            subText.resizeTextForBestFit = true;
+            subText.resizeTextMinSize = 20;
+            subText.resizeTextMaxSize = 28;
+
+            Outline subOutline = subText.gameObject.AddComponent<Outline>();
+            subOutline.effectColor = new Color(0f, 0f, 0.1f, 0.95f);
+            subOutline.effectDistance = new Vector2(2f, -2f);
 
             // 7. メインボタン1：『① 第1話から はじめる』（飛鳥時代編）
             Button startBtn = CreateAceCornerButton(
@@ -663,11 +672,21 @@ namespace AsukaHistoryCourt
             _opVisualArtText = CreateText(eraBox, "OpVisualArtText", "", 27, FontStyle.Bold, new Color(1f, 0.94f, 0.72f), TextAnchor.LowerLeft);
             SetPadding(_opVisualArtText.rectTransform, 26f, 26f, 54f, 12f);
 
-            // 中央：アニメ第1話サブタイトル・アイキャッチバナー（クライマックスで表示）
-            RectTransform epBanner = CreateAceDialogueStyleBox(panel, "OpEpisodeTitleBanner", new Color(0.08f, 0.06f, 0.22f, 0.96f));
-            SetAnchor(epBanner, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 180f), new Vector2(1560f, 124f));
-            _opEpisodeTitleText = CreateText(epBanner, "OpEpisodeTitleText", "🎬 第1話：逆転の飛鳥時代 〜聖徳太子から大化の改新へ〜", 42, FontStyle.Bold, new Color(1f, 0.92f, 0.38f), TextAnchor.MiddleCenter);
-            SetPadding(_opEpisodeTitleText.rectTransform, 24f, 24f, 12f, 12f);
+            // 下部：アニメ第1話・第2話サブタイトル・アイキャッチバナー（レイの顔に被らないようメッセージウィンドウ直上に配置）
+            RectTransform epBanner = CreateAceDialogueStyleBox(panel, "OpEpisodeTitleBanner", new Color(0.06f, 0.05f, 0.20f, 0.96f));
+            SetAnchor(epBanner, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 355f), new Vector2(1660f, 104f));
+            _opEpisodeTitleText = CreateText(epBanner, "OpEpisodeTitleText", "🎬 第1話：逆転の飛鳥時代 〜聖徳太子から大化の改新へ〜", 38, FontStyle.Bold, new Color(1f, 0.92f, 0.38f), TextAnchor.MiddleCenter);
+            SetPadding(_opEpisodeTitleText.rectTransform, 20f, 20f, 10f, 10f);
+            _opEpisodeTitleText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _opEpisodeTitleText.verticalOverflow = VerticalWrapMode.Truncate;
+            _opEpisodeTitleText.resizeTextForBestFit = true;
+            _opEpisodeTitleText.resizeTextMinSize = 24;
+            _opEpisodeTitleText.resizeTextMaxSize = 38;
+
+            Outline epOutline = _opEpisodeTitleText.gameObject.AddComponent<Outline>();
+            epOutline.effectColor = new Color(0f, 0f, 0.1f, 0.95f);
+            epOutline.effectDistance = new Vector2(2f, -2f);
+
             _opEpisodeTitleBanner = epBanner.gameObject;
             _opEpisodeTitleBanner.SetActive(false);
 
