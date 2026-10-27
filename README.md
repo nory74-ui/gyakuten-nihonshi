@@ -23,7 +23,7 @@
 
 GitHub PagesにてWeb版を公開中！PCのブラウザはもちろん、iPhoneやAndroidスマートフォンでもURLを開くだけですぐに遊べます。
 
-👉 **[ゲームを今すぐプレイする（GitHub Pages）](https://<YOUR_GITHUB_USERNAME>.github.io/<YOUR_REPO_NAME>/)**  
+👉 **[ゲームを今すぐプレイする（GitHub Pages）](https://nory74-ui.github.io/gyakuten-nihonshi/)**  
 *(※GitHub設定の「Pages」を有効にすると上記URLで遊べます)*
 
 ---
